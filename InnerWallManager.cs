@@ -60,7 +60,7 @@ public class InnerWallFunctions
 
         InstantiateBlock(prefabToInstantiate, cell, positionX, positionZ, wallRotation);
 
-        grid_innerWall[row, col] = cell; // 부모 오브젝트를 그리드에 저장    
+        pggBeforeRefactor.grid_innerWall[row, col] = cell; // 부모 오브젝트를 그리드에 저장    
 
         yield return null;
     }
@@ -112,11 +112,21 @@ public class InnerWallFunctions
             hasLeft = false;
             connectionCount--;
         }
-        else if (right == "X_Horizontal" && hasAbove && hasLeft)
+        else if (right == "X_Horizontal" && hasAbove)
         {
             hasRight = false;
             connectionCount--;
         }
+        else if (left == "X_Horizontal" && hasRight && hasAbove && !hasBelow)
+        {
+            hasLeft = false;
+            connectionCount--;
+        }     
+        else if (left == "X_Horizontal" && hasRight && hasAbove && hasBelow)
+        {
+            hasLeft = false;
+            connectionCount--;
+        }    
     }
 
     // 연결된 벽 상태에 따라 적절한 프리팹을 선택하는 함수
@@ -218,6 +228,7 @@ public class InnerWallFunctions
         {
             int width = UnityEngine.Random.Range(minWidth, maxWidth);
             int height = UnityEngine.Random.Range(minHeight, maxHeight);
+
             /* 여기까진 오케이 */
             drawRectangle.DrawRectangle(startingPoints[i], new Vector2Int(width, height), labels[i]);
         }

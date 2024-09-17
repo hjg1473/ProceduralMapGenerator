@@ -51,6 +51,12 @@ public class CheckGrids
         return GetGridValue(pggBeforeRefactor.grid_UserAble, row, col);
     }
 
+    // 그리드를 체크하는 함수 
+    public string Check_grid_toilet(int row, int col)
+    {
+        return GetGridValue(pggBeforeRefactor.grid_Toilet, row, col);
+    }
+
     #endregion
 
 

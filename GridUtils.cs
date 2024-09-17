@@ -44,6 +44,9 @@ public class GridUtils
 
                     pggBeforeRefactor.grid_to_Calculate[row, col] = null;
                     pggBeforeRefactor.grid_UserAble[row, col] = null;
+                    pggBeforeRefactor.grid_Kitchen[row, col] = null;
+                    pggBeforeRefactor.grid_Toilet[row, col] = null;
+                    pggBeforeRefactor.visited[row, col] = false;
 
                 }
             }

@@ -11,6 +11,9 @@ public class PGGbeforeRefactor : MonoBehaviour
 {
 
     [SerializeField] public GameObject floorPrefab;
+    [SerializeField] public GameObject oneSidetoiletFloorPrefab;
+    [SerializeField] public GameObject twoSidetoiletFloorPrefab;
+    [SerializeField] public GameObject threeSidetoiletFloorPrefab;
     [SerializeField] public GameObject wallPrefab;
     [SerializeField] public GameObject cornerPrefab;
     [SerializeField] public GameObject yellowBlockPrefab;
@@ -24,6 +27,14 @@ public class PGGbeforeRefactor : MonoBehaviour
     [SerializeField] public GameObject twoSidesCornerBlockPrefab;
     [SerializeField] public GameObject threeSidesCornerBlockPrefab;
     [SerializeField] public GameObject fourSidesCornerBlockPrefab;
+    [SerializeField] public GameObject toiletSinkPrefab;
+    [SerializeField] public GameObject toiletBidetPrefab;
+    [SerializeField] public GameObject toiletCabinetPrefab;
+    [SerializeField] public GameObject toiletTisuePrefab;
+    [SerializeField] public GameObject kitchenSinkPrefab;
+    [SerializeField] public GameObject kitchenValvePrefab;
+    [SerializeField] public GameObject kitchenRefPrefab;
+    [SerializeField] public GameObject kitchenCabinetPrefab;
 
     public float spacing = 1.0f; // 평면 사이의 간격
     [SerializeField, Range(1, 50)]
@@ -37,8 +48,11 @@ public class PGGbeforeRefactor : MonoBehaviour
     // [SerializeField]
     public GameObject[,] grid = null;
     public GameObject[,] grid_innerWall = null;
+    public GameObject[,] grid_ToiletObject = null;
     public string[,] grid_to_Calculate = null;
     public string[,] grid_UserAble = null;
+    public string[,] grid_Kitchen = null;
+    public string[,] grid_Toilet = null;
     public bool[,] visited = null;
 
     [SerializeField, Range(1, 100)]
@@ -56,6 +70,8 @@ public class PGGbeforeRefactor : MonoBehaviour
     private CheckGrids checkGrids; 
     private ReplaceGrid replaceGrid; 
     private FloorManager floorManger;
+    private DecisionRooms decisionRooms;
+    private ToiletManager toiletmanager;
 
     void Start()
     {
@@ -66,11 +82,14 @@ public class PGGbeforeRefactor : MonoBehaviour
         Random.InitState(randomSeed);
         grid = new GameObject[height, width];
         grid_innerWall = new GameObject[height, width];
+        grid_ToiletObject = new GameObject[height, width];
 
         // 내부 벽 계산용
         grid_to_Calculate = new string[height, width];
         // 현관문 계산용
         grid_UserAble = new string[height, width];
+        grid_Kitchen = new string[height, width]; 
+        grid_Toilet = new string[height, width];
         visited = new bool[height, width];
         // InitializeGrid();
 
@@ -80,6 +99,8 @@ public class PGGbeforeRefactor : MonoBehaviour
         checkGrids = new CheckGrids(this);
         replaceGrid = new ReplaceGrid(this);
         floorManger = new FloorManager(this);
+        decisionRooms = new DecisionRooms(this);
+        toiletmanager = new ToiletManager(this);
     }
 
     // Update is called once per frame
@@ -100,9 +121,12 @@ public class PGGbeforeRefactor : MonoBehaviour
                 prevHeight = height;
                 grid = new GameObject[height, width];
                 grid_innerWall = new GameObject[height, width];
+                grid_ToiletObject = new GameObject[height, width];
 
                 grid_to_Calculate = new string[height, width];
                 grid_UserAble = new string[height, width];
+                grid_Kitchen = new string[height, width];
+                grid_Toilet = new string[height, width];
                 visited = new bool[height, width];
             }
             // 새로운 시드로 초기화
@@ -124,27 +148,50 @@ public class PGGbeforeRefactor : MonoBehaviour
         // 직사각형 그리기. 
         innerWallFunctions.CalculateInnerWall(randomRow, randomCol);
         // 여기서 면적이 가장 작은 문자를 선택. 화장실로. 
-
+        // 중첩된 반복문을 사용하여 배열 복사
+        gridUtils.CopyArrayAndModifyXto0(grid_to_Calculate, grid_Toilet, prevHeight, prevWidth);
+        // A, B, C, D 중에 가장 작은 개수의 문자를 T로 변경
+        
         // 문 생성
         char[] targetChars = { 'A', 'B', 'C', 'D' };
         ReplaceGrid.ProcessArray(grid_to_Calculate, targetChars);
         // 중첩된 반복문을 사용하여 배열 복사
         gridUtils.CopyArrayAndModifyXto0(grid_to_Calculate, grid_UserAble, prevHeight, prevWidth);
+
+
         // 현관문 후보 grid_UserAble 사용. 0을 M으로 바꾸기
         replaceGrid.ReplaceLargestZeroArea();
         // 내부문을 이용하는 곳도 M으로 변경.
         CheckGridEdges(grid_UserAble, prevHeight, prevWidth);
         // 여러 M 중 하나를 S + W + E 로 변경.
         replaceGrid.ReplaceMOnEdgeWithS();
+
+        // 중첩된 반복문을 사용하여 UserAble 배열 복사
+        gridUtils.CopyArrayAndModifyXto0(grid_UserAble, grid_Kitchen, prevHeight, prevWidth);
+        // 주방의 영역을 K로 설정
+
+        DecisionRooms.ReplaceMinStringWithT(grid_Toilet, new string[] { "A", "B", "C", "D" });
+        ToiletManager.edgeTChange(grid_Toilet);
+
         // 그리드 출력
-        innerWallFunctions.grid_to_CalculatePrintGrid();
+        // innerWallFunctions.grid_to_CalculatePrintGrid();
+        
+        for (int i = 0; i < prevHeight; i++)
+        {
+            string row = "";
+            for (int j = 0; j < prevWidth; j++)
+            {
+                row += grid_Toilet[i, j].ToString() + " ";
+            }
+            Debug.Log(row);
+        }
         // 배열을 기준으로 오브젝트 생성
         for(int row = 0; row < prevHeight; row++)
         {
             for(int col = 0; col < prevWidth; col++)
             {
                 StartCoroutine(floorManger.AddFloor(row, col, row == randomRow && col == randomCol));
-                if(checkGrids.Check_grid_UserAble(row, col) != "S")
+                if(checkGrids.Check_grid_UserAble(row, col) != "S" && checkGrids.Check_grid_UserAble(row, col) != "Q")
                     StartCoroutine(innerWallFunctions.AddInnerWall(row, col, grid_innerWall, floorPrefab, doorPrefab, spacing, transform));
             }
         }

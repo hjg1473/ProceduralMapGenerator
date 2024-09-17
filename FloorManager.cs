@@ -26,7 +26,7 @@ public class FloorManager
             GameObject cell = CreateParentCell(row, col, position, pggBeforeRefactor.transform);
 
             // 바닥 생성 및 부모 오브젝트에 추가
-            CreateFloor(position, cell);
+            CreateFloor(position, cell, row, col);
 
             // 노란색 블록 배치 여부에 따라 추가
             if (placeYellowBlock)
@@ -58,10 +58,103 @@ public class FloorManager
         return cell;
     }
 
-    // 바닥을 생성하는 함수
-    void CreateFloor(Vector3 position, GameObject cell)
+
+    // 세 방향 연결에 따른 회전 설정 함수
+    Quaternion SelectRotationFloorForThreeConnections(bool hasAbove, bool hasBelow, bool hasLeft)
     {
-        GameObject floor = UnityEngine.Object.Instantiate(pggBeforeRefactor.floorPrefab, position, Quaternion.identity);
+        if (hasAbove && !hasBelow)
+            return Quaternion.Euler(0, 270, 0);
+        if (!hasAbove && hasBelow)
+            return Quaternion.Euler(0, 90, 0);
+        if (hasLeft)
+            return Quaternion.Euler(0, 180, 0);
+        return Quaternion.Euler(0, 0, 0);
+    }
+
+
+    // 두 방향 연결에 맞는 프리팹과 회전, 위치 조정
+    GameObject SelectFloorPrefabForTwoConnections(bool hasAbove, bool hasBelow, bool hasLeft, bool hasRight, ref Quaternion wallRotation, ref float positionX, ref float positionZ)
+    {
+        if (hasAbove && hasRight) 
+        {
+            wallRotation = Quaternion.Euler(0, 270, 0);
+            // positionX -= 0.25f;
+            return pggBeforeRefactor.threeSidetoiletFloorPrefab;
+        }
+        if (hasAbove && hasLeft) 
+        {
+            wallRotation = Quaternion.Euler(0, 180, 0);
+            // positionZ -= 0.25f;
+            return pggBeforeRefactor.threeSidetoiletFloorPrefab;
+        }
+        if (hasBelow && hasRight) 
+        {
+            wallRotation = Quaternion.Euler(0, 0, 0);
+            // positionZ += 0.25f;
+            return pggBeforeRefactor.threeSidetoiletFloorPrefab;
+        }
+        wallRotation = Quaternion.Euler(0, 90, 0);
+        // positionX += 0.25f;
+        return pggBeforeRefactor.threeSidetoiletFloorPrefab;
+    }
+
+    // 연결된 벽 상태에 따라 적절한 프리팹을 선택하는 함수
+    GameObject SelectFloorPrefab(int connectionCount, bool hasAbove, bool hasBelow, bool hasLeft, bool hasRight, ref Quaternion wallRotation, ref float positionX, ref float positionZ)
+    {
+        GameObject prefabToInstantiate = null;
+
+        if (connectionCount == 4)
+        {
+            prefabToInstantiate = pggBeforeRefactor.oneSidetoiletFloorPrefab;
+        }
+        else if (connectionCount == 3)
+        {
+            prefabToInstantiate = pggBeforeRefactor.twoSidetoiletFloorPrefab;
+            wallRotation = SelectRotationFloorForThreeConnections(hasAbove, hasBelow, hasLeft);
+        }
+        else if (connectionCount == 2)
+        {
+            prefabToInstantiate = SelectFloorPrefabForTwoConnections(hasAbove, hasBelow, hasLeft, hasRight, ref wallRotation, ref positionX, ref positionZ);
+        }
+        else
+            prefabToInstantiate = pggBeforeRefactor.floorPrefab;
+
+        return prefabToInstantiate;
+    }
+
+    // 바닥을 생성하는 함수
+    void CreateFloor(Vector3 position, GameObject cell, int row, int col)
+    {
+        GameObject floor = null;
+        HashSet<string> validValues = new HashSet<string> { "T", "a", "b", "c", "d" };
+
+        if (validValues.Contains(checkGrids.Check_grid_toilet(row, col)))
+        {
+            string above = checkGrids.Check_grid_toilet(row - 1, col);
+            string below = checkGrids.Check_grid_toilet(row + 1, col);
+            string left = checkGrids.Check_grid_toilet(row, col - 1);
+            string right = checkGrids.Check_grid_toilet(row, col + 1);
+
+            // T 가 있다면 1 
+            bool hasAbove = validValues.Contains(above);
+            bool hasBelow = validValues.Contains(below);
+            bool hasLeft = validValues.Contains(left);
+            bool hasRight = validValues.Contains(right);
+
+            // 4방향이 T 이면. 1side . 3방향이 T이면 2side. 2방향이 T 이면 3side.
+
+            Quaternion wallRotation = Quaternion.identity;
+            float positionX = position.x;
+            float positionZ = position.z;
+
+            int connectionCount = (hasAbove ? 1 : 0) + (hasBelow ? 1 : 0) + (hasLeft ? 1 : 0) + (hasRight ? 1 : 0);
+            GameObject floorPrefab = SelectFloorPrefab(connectionCount, hasAbove, hasBelow, hasLeft, hasRight, ref wallRotation, ref positionX, ref positionZ);
+            floor = UnityEngine.Object.Instantiate(floorPrefab, position, wallRotation);
+        }
+
+        else
+            floor = UnityEngine.Object.Instantiate(pggBeforeRefactor.floorPrefab, position, Quaternion.identity);
+
         floor.transform.parent = cell.transform;
     }
 
